@@ -126,9 +126,20 @@ def format_duration(start: datetime, end: datetime) -> str:
 
 
 def make_timestamp_step(text: str) -> dict[str, Any]:
-    # Workaround for agy v1.5.14 panic in utils.ScrubInternalFields (proto_utils.go:34)
-    # when systemMessage.metadata is a non-empty map<string, string>.
-    if os.environ.get("AGY_TIMESTAMPS_USE_USER_MARKDOWN") == "1":
+    # Modes:
+    # - error_message (default workaround for agy v1.5.14): visibly renders in TUI
+    #   without sending anything to the model, and avoids the proto_utils.go:34 panic
+    #   on systemMessage.metadata. (Note: marks headless `agy -p` runs non-zero.)
+    # - user_markdown: ideal inline markdown once agy fixes proto_utils.go:34.
+    # - user_message: renders as a user message (also sent to the model).
+    # - system_message: hidden in agy CLI TUI; visible to the model only.
+    mode = os.environ.get("AGY_TIMESTAMPS_MODE", "").strip().lower()
+    if not mode and os.environ.get("AGY_TIMESTAMPS_USE_USER_MARKDOWN") == "1":
+        mode = "user_markdown"
+    if not mode:
+        mode = "error_message"
+
+    if mode == "user_markdown":
         return {
             "injectSteps": [
                 {
@@ -141,11 +152,29 @@ def make_timestamp_step(text: str) -> dict[str, Any]:
                 }
             ]
         }
+    if mode == "user_message":
+        return {
+            "injectSteps": [
+                {
+                    "userMessage": f"[{text}]",
+                }
+            ]
+        }
+    if mode == "system_message":
+        return {
+            "injectSteps": [
+                {
+                    "systemMessage": {
+                        "systemMessage": text,
+                    }
+                }
+            ]
+        }
     return {
         "injectSteps": [
             {
-                "systemMessage": {
-                    "systemMessage": text,
+                "errorMessage": {
+                    "userMessage": text,
                 }
             }
         ]

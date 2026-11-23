@@ -24,7 +24,7 @@ class TimestampsHookTest(unittest.TestCase):
         )
         return json.loads(res.stdout)
 
-    def test_multi_step_turn_default_plain_system_message(self) -> None:
+    def test_multi_step_turn_default_error_message(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             td_path = Path(td)
             tr = td_path / "transcript.jsonl"
@@ -44,9 +44,8 @@ class TimestampsHookTest(unittest.TestCase):
                 },
                 data,
             )
-            sm1 = out1["injectSteps"][0]["systemMessage"]
-            self.assertNotIn("metadata", sm1)
-            self.assertTrue(sm1["systemMessage"].startswith("Sent "))
+            em1 = out1["injectSteps"][0]["errorMessage"]
+            self.assertTrue(em1["userMessage"].startswith("Sent "))
 
             with tr.open("a", encoding="utf-8") as f:
                 f.write(json.dumps({"step_index": 1, "type": "PLANNER_RESPONSE", "tool_calls": [{"name": "read_file"}]}) + "\n")
@@ -86,10 +85,9 @@ class TimestampsHookTest(unittest.TestCase):
                 },
                 data,
             )
-            sm4 = out4["injectSteps"][0]["systemMessage"]
-            self.assertNotIn("metadata", sm4)
-            self.assertIn("Started ", sm4["systemMessage"])
-            self.assertIn("Finished ", sm4["systemMessage"])
+            em4 = out4["injectSteps"][0]["errorMessage"]
+            self.assertIn("Started ", em4["userMessage"])
+            self.assertIn("Finished ", em4["userMessage"])
 
             with tr.open("a", encoding="utf-8") as f:
                 f.write(json.dumps({"step_index": 5, "type": "USER_INPUT", "created_at": "2026-11-23T07:26:00Z"}) + "\n")
@@ -103,9 +101,9 @@ class TimestampsHookTest(unittest.TestCase):
                 },
                 data,
             )
-            self.assertTrue(out5["injectSteps"][0]["systemMessage"]["systemMessage"].startswith("Sent "))
+            self.assertTrue(out5["injectSteps"][0]["errorMessage"]["userMessage"].startswith("Sent "))
 
-    def test_opt_in_user_markdown_mode(self) -> None:
+    def test_opt_in_modes(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             td_path = Path(td)
             tr = td_path / "transcript.jsonl"
@@ -114,7 +112,7 @@ class TimestampsHookTest(unittest.TestCase):
                 json.dumps({"step_index": 0, "type": "USER_INPUT", "created_at": "2026-11-23T07:25:00Z"}) + "\n",
                 encoding="utf-8",
             )
-            out = self._run_hook(
+            out_md = self._run_hook(
                 {
                     "hookEventName": "PreInvocation",
                     "conversationId": "c2",
@@ -123,11 +121,24 @@ class TimestampsHookTest(unittest.TestCase):
                     "transcriptPath": str(tr),
                 },
                 data,
-                extra_env={"AGY_TIMESTAMPS_USE_USER_MARKDOWN": "1"},
+                extra_env={"AGY_TIMESTAMPS_MODE": "user_markdown"},
             )
-            sm = out["injectSteps"][0]["systemMessage"]
+            sm = out_md["injectSteps"][0]["systemMessage"]
             self.assertEqual(sm["systemMessage"], "")
             self.assertIn("user_markdown", sm["metadata"])
+
+            out_um = self._run_hook(
+                {
+                    "hookEventName": "PreInvocation",
+                    "conversationId": "c3",
+                    "invocationNum": 0,
+                    "initialNumSteps": 1,
+                    "transcriptPath": str(tr),
+                },
+                data,
+                extra_env={"AGY_TIMESTAMPS_MODE": "user_message"},
+            )
+            self.assertTrue(out_um["injectSteps"][0]["userMessage"].startswith("[Sent "))
 
 
 if __name__ == "__main__":

@@ -10,8 +10,11 @@ An Antigravity CLI (`agy`) plugin that uses `PreInvocation` and `PostInvocation`
 
 ## Notes
 
-- In `agy` v1.5.14, setting `systemMessage.metadata.user_markdown` triggers an upstream panic in `utils.ScrubInternalFields` (`type mismatch: cannot convert string to message`). By default this plugin emits a plain `systemMessage` without `metadata` to avoid the crash.
-- Set `AGY_TIMESTAMPS_USE_USER_MARKDOWN=1` to opt back into `metadata.user_markdown` once fixed upstream.
+- In `agy` v1.5.14:
+  - `systemMessage` with `metadata.user_markdown` triggers an upstream panic in `utils.ScrubInternalFields` (`proto_utils.go:34`).
+  - Plain `systemMessage` (without `metadata`) injects cleanly for the model, but is hidden in the `agy` CLI TUI.
+  - By default this plugin uses `errorMessage` (without `terminationBehavior: "terminate"`), which displays directly to the user without sending extra tokens to the model. Caveat: it uses error styling and causes headless `agy -p` runs to exit non-zero.
+- Set `AGY_TIMESTAMPS_MODE` to switch modes (`error_message`, `user_message`, `user_markdown`, or `system_message`).
 - Set `AGY_TIMESTAMPS_DEBUG=1` to append hook invocation traces to `~/.gemini/config/message-timestamps-debug.log`.
 
 ## Local Installation
