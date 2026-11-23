@@ -1,0 +1,5 @@
+{
+  "name": "message-timestamps",
+  "version": "1.0.0",
+  "description": "Displays local sent timestamps below user messages and start/finish timestamps below Gemini responses."
+}
