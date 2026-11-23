@@ -125,15 +125,27 @@ def format_duration(start: datetime, end: datetime) -> str:
     return " ".join(parts)
 
 
-def make_user_markdown_step(markdown: str) -> dict[str, Any]:
+def make_timestamp_step(text: str) -> dict[str, Any]:
+    # Workaround for agy v1.5.14 panic in utils.ScrubInternalFields (proto_utils.go:34)
+    # when systemMessage.metadata is a non-empty map<string, string>.
+    if os.environ.get("AGY_TIMESTAMPS_USE_USER_MARKDOWN") == "1":
+        return {
+            "injectSteps": [
+                {
+                    "systemMessage": {
+                        "systemMessage": "",
+                        "metadata": {
+                            "user_markdown": f"*{text}*",
+                        },
+                    }
+                }
+            ]
+        }
     return {
         "injectSteps": [
             {
                 "systemMessage": {
-                    "systemMessage": "",
-                    "metadata": {
-                        "user_markdown": markdown,
-                    },
+                    "systemMessage": text,
                 }
             }
         ]
@@ -206,7 +218,7 @@ def handle_pre_invocation(payload: dict[str, Any], now: datetime) -> dict[str, A
     }
     save_state(conv_id, new_state)
 
-    return make_user_markdown_step(f"*Sent {format_time(sent_dt, include_date=True)}*")
+    return make_timestamp_step(f"Sent {format_time(sent_dt, include_date=True)}")
 
 
 def handle_post_invocation(payload: dict[str, Any], now: datetime) -> dict[str, Any]:
@@ -245,10 +257,12 @@ def handle_post_invocation(payload: dict[str, Any], now: datetime) -> dict[str, 
     end_str = format_time(now, include_date=crossed_day)
     dur_str = format_duration(start_dt, now)
 
-    return make_user_markdown_step(f"*Started {start_str} · Finished {end_str} ({dur_str})*")
+    return make_timestamp_step(f"Started {start_str} · Finished {end_str} ({dur_str})")
 
 
 def _debug_log(entry: dict[str, Any]) -> None:
+    if os.environ.get("AGY_TIMESTAMPS_DEBUG") != "1":
+        return
     try:
         log_path = Path.home() / ".gemini" / "config" / "message-timestamps-debug.log"
         with log_path.open("a", encoding="utf-8") as fh:
