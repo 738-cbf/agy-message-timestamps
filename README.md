@@ -7,7 +7,7 @@ An Antigravity CLI (`agy`) plugin that uses `PreInvocation` and `PostInvocation`
 - `plugin.json` — plugin manifest
 - `hooks.json` — registers `PreInvocation` and `PostInvocation` command hooks
 - `hooks/timestamps.py` — tracks per-conversation turn start/finish times and emits injected timestamp steps
-- `scripts/statusline.py` — optional custom `/statusline` script showing live local clock + Sent/Started/Finished timing with subtle ANSI colors
+- `scripts/statusline.py` — optional custom `/statusline` script showing Sent/Started/Finished timing with subtle ANSI colors
 
 ## Custom Status Line
 

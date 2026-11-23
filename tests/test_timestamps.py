@@ -210,6 +210,7 @@ class TimestampsHookTest(unittest.TestCase):
             ).stdout
             self.assertIn("→", idle)
             self.assertNotIn("Gemini 4 Neon", idle)
+            self.assertTrue(idle.strip().startswith("\x1b[2mSent"))
 
 
 if __name__ == "__main__":

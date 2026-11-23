@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Antigravity CLI custom status line: local clock + turn sent/started/finished timestamps."""
+"""Antigravity CLI custom status line: turn sent/started/finished timestamps."""
 
 from __future__ import annotations
 
@@ -133,35 +133,34 @@ def render_status_line(payload: dict[str, Any], now: datetime, timestamps_only: 
         if agent_state == "idle":
             finish_dt = tr_planner_dt
 
-    clock = f"{DIM}{format_time(now)}{RESET}"
     sep = f" {DIM}·{RESET} "
-    parts = [clock]
+    time_parts = []
 
     if sent_dt is not None:
         include_date = sent_dt.date() != now.date()
-        parts.append(f"{DIM}Sent{RESET} {CYAN}{format_time(sent_dt, include_date=include_date)}{RESET}")
+        time_parts.append(f"{DIM}Sent{RESET} {CYAN}{format_time(sent_dt, include_date=include_date)}{RESET}")
 
     active_states = {"working", "tool_use", "reviewing", "initializing"}
     if start_dt is not None:
         if agent_state in active_states or finish_dt is None:
             elapsed = format_duration(start_dt, now)
-            parts.append(
+            time_parts.append(
                 f"{DIM}Agent{RESET} {YELLOW}{format_time(start_dt)} … ({elapsed}){RESET}"
             )
         else:
             crossed_day = start_dt.date() != finish_dt.date()
             dur = format_duration(start_dt, finish_dt)
-            parts.append(
+            time_parts.append(
                 f"{DIM}Agent{RESET} {GREEN}{format_time(start_dt, include_date=crossed_day)} → "
                 f"{format_time(finish_dt, include_date=crossed_day)}{RESET} {DIM}({dur}){RESET}"
             )
 
-    if isinstance(width, int) and width > 0 and width < 80 and len(parts) == 3:
+    if isinstance(width, int) and width > 0 and width < 80 and len(time_parts) == 2:
         if sent_dt is not None and start_dt is not None and abs((start_dt - sent_dt).total_seconds()) < 2:
-            parts.pop(1)
+            time_parts.pop(0)
 
+    meta = []
     if not timestamps_only:
-        meta = []
         cycle_mode = payload.get("cycle_mode")
         if cycle_mode:
             meta.append(f"{YELLOW}{cycle_mode}{RESET}")
@@ -175,10 +174,12 @@ def render_status_line(payload: dict[str, Any], now: datetime, timestamps_only: 
             pct = float(ctx["used_percentage"])
             if pct > 0:
                 meta.append(f"{DIM}{pct:.0f}% ctx{RESET}")
-        if meta:
-            parts.append(sep.join(meta))
 
-    return f" {DIM}│{RESET} ".join([sep.join(parts[:-1]), parts[-1]]) if (not timestamps_only and len(parts) > 1 and (payload.get("model") or payload.get("cycle_mode"))) else sep.join(parts)
+    left = sep.join(time_parts)
+    right = sep.join(meta)
+    if left and right:
+        return f"{left} {DIM}│{RESET} {right}"
+    return left or right
 
 
 def main() -> int:
