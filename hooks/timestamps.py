@@ -241,7 +241,9 @@ def handle_pre_invocation(payload: dict[str, Any], now: datetime) -> dict[str, A
         "last_emitted_planner_step_idx": state.get("last_emitted_planner_step_idx") if state else None,
         "first_invocation_num": first_inv_num,
         "initial_num_steps": initial_num_steps,
+        "sent_iso": sent_dt.isoformat(),
         "turn_start_iso": now.isoformat(),
+        "turn_finish_iso": None,
         "inv_start_iso": now.isoformat(),
         "seen_post": False,
     }
@@ -279,6 +281,7 @@ def handle_post_invocation(payload: dict[str, Any], now: datetime) -> dict[str, 
     if start_dt is None:
         start_dt = now
 
+    state["turn_finish_iso"] = now.isoformat()
     save_state(conv_id, state)
 
     crossed_day = start_dt.date() != now.date()

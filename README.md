@@ -6,7 +6,18 @@ An Antigravity CLI (`agy`) plugin that uses `PreInvocation` and `PostInvocation`
 
 - `plugin.json` — plugin manifest
 - `hooks.json` — registers `PreInvocation` and `PostInvocation` command hooks
-- `hooks/timestamps.py` — tracks per-conversation turn start times and emits injected timestamp steps
+- `hooks/timestamps.py` — tracks per-conversation turn start/finish times and emits injected timestamp steps
+- `scripts/statusline.py` — optional custom `/statusline` script showing live local clock + Sent/Started/Finished timing with subtle ANSI colors
+
+## Custom Status Line
+
+Enable inside `agy` with:
+
+```text
+/statusline python3 ~/.gemini/config/plugins/message-timestamps/scripts/statusline.py
+```
+
+To stack it below `agy`'s built-in status line instead of replacing it, pass `--timestamps-only` and set `"stack_with_default": true` under `"statusLine"` in `~/.gemini/antigravity-cli/settings.json`.
 
 ## Notes
 

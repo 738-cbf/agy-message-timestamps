@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parent.parent / "hooks" / "timestamps.py"
+STATUSLINE_SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "statusline.py"
 
 
 class TimestampsHookTest(unittest.TestCase):
@@ -139,6 +140,76 @@ class TimestampsHookTest(unittest.TestCase):
                 extra_env={"AGY_TIMESTAMPS_MODE": "user_message"},
             )
             self.assertTrue(out_um["injectSteps"][0]["userMessage"].startswith("[Sent "))
+
+    def test_statusline_reads_hook_state_and_transcript_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            td_path = Path(td)
+            tr = td_path / "transcript.jsonl"
+            data = td_path / "data"
+
+            tr.write_text(
+                json.dumps({"step_index": 0, "type": "USER_INPUT", "created_at": "2026-11-23T07:25:00Z"}) + "\n",
+                encoding="utf-8",
+            )
+            self._run_hook(
+                {
+                    "hookEventName": "PreInvocation",
+                    "conversationId": "c-status",
+                    "invocationNum": 0,
+                    "initialNumSteps": 1,
+                    "transcriptPath": str(tr),
+                },
+                data,
+            )
+
+            env = {
+                "PATH": "/usr/bin:/bin",
+                "AGY_TIMESTAMPS_STATE_DIR": str(data / "state"),
+            }
+            working = subprocess.run(
+                ["python3", str(STATUSLINE_SCRIPT)],
+                input=json.dumps(
+                    {
+                        "conversation_id": "c-status",
+                        "agent_state": "working",
+                        "cycle_mode": "auto",
+                        "model": {"display_name": "Gemini 4 Neon (High)"},
+                        "context_window": {"used_percentage": 12.4},
+                    }
+                ),
+                text=True,
+                capture_output=True,
+                check=True,
+                env=env,
+            ).stdout
+            self.assertIn("Sent", working)
+            self.assertIn("Agent", working)
+            self.assertIn("…", working)
+            self.assertIn("Gemini 4 Neon (High)", working)
+
+            with tr.open("a", encoding="utf-8") as f:
+                f.write(json.dumps({"step_index": 1, "type": "PLANNER_RESPONSE", "content": "Done"}) + "\n")
+            self._run_hook(
+                {
+                    "hookEventName": "PostInvocation",
+                    "conversationId": "c-status",
+                    "invocationNum": 0,
+                    "initialNumSteps": 1,
+                    "transcriptPath": str(tr),
+                },
+                data,
+            )
+
+            idle = subprocess.run(
+                ["python3", str(STATUSLINE_SCRIPT), "--timestamps-only"],
+                input=json.dumps({"conversation_id": "c-status", "agent_state": "idle"}),
+                text=True,
+                capture_output=True,
+                check=True,
+                env=env,
+            ).stdout
+            self.assertIn("→", idle)
+            self.assertNotIn("Gemini 4 Neon", idle)
 
 
 if __name__ == "__main__":
